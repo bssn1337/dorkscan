@@ -52,7 +52,7 @@ func init() {
 	scanCmd.Flags().BoolVarP(&flagEnrich, "enrich", "e", false, "Aktifkan enrichment: IP, ISP, CMS detection")
 	scanCmd.Flags().IntVarP(&flagDepth, "depth", "d", 3, "Jumlah halaman per query (1 halaman = 10 hasil)")
 	scanCmd.Flags().IntVarP(&flagLimit, "limit", "l", 0, "Batas maksimal domain yang dikumpulkan (0 = unlimited)")
-	scanCmd.Flags().IntVar(&flagDelay, "delay", 600, "Jeda antar API request dalam ms (default: 600)")
+	scanCmd.Flags().IntVar(&flagDelay, "delay", 600, "Jeda antar API request dalam ms")
 	scanCmd.Flags().IntVar(&flagConcurrency, "concurrency", 20, "Jumlah worker enrichment paralel")
 	scanCmd.Flags().StringVar(&flagDorkFile, "dork-file", "", "File template dork kustom (satu template per baris)")
 	scanCmd.Flags().BoolVarP(&flagVerbose, "verbose", "v", false, "Tampilkan detail tiap domain yang ditemukan")
