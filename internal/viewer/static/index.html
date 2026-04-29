@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dorkscan Viewer — Gatlab</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#f2f1ec;--panel:#fff;--border:rgba(0,0,0,.09);--text:#1c1917;--dim:rgba(28,25,23,.5);--orange:#e8620a;--green:#16a34a;--blue:#2563eb}
+body{background:var(--bg);background-image:radial-gradient(circle,rgba(0,0,0,.08) 1px,transparent 1px);background-size:22px 22px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:var(--text);min-height:100vh}
+#nav{position:fixed;top:0;left:0;right:0;height:48px;background:rgba(255,255,255,.96);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;gap:12px;z-index:100;backdrop-filter:blur(12px);box-shadow:0 1px 8px rgba(0,0,0,.06)}
+.nav-logo{display:flex;align-items:center;gap:8px;font-weight:800;font-size:13px;letter-spacing:.5px;color:var(--orange)}
+.nav-sub{font-size:11px;color:var(--dim)}
+#total-badge{margin-left:auto;background:var(--orange);color:#fff;font-size:10px;font-weight:700;padding:2px 10px;border-radius:20px;letter-spacing:.5px}
+#main{padding:72px 24px 40px;max-width:1400px;margin:0 auto}
+
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px}
+.stat-card{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:16px 20px;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.stat-label{font-size:9px;color:var(--dim);letter-spacing:.8px;text-transform:uppercase;margin-bottom:6px}
+.stat-value{font-size:28px;font-weight:900;font-family:monospace;color:var(--text);line-height:1}
+.stat-sub{font-size:10px;color:var(--dim);margin-top:4px}
+
+.charts-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px}
+.chart-card{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.chart-title{font-size:9px;color:var(--dim);letter-spacing:.8px;text-transform:uppercase;margin-bottom:12px;font-weight:600}
+.bar-row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.bar-label{font-size:10px;color:var(--text);width:110px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-track{flex:1;height:6px;background:rgba(0,0,0,.07);border-radius:3px;overflow:hidden}
+.bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--orange),#f97316)}
+.bar-count{font-size:10px;color:var(--dim);font-family:monospace;width:40px;text-align:right;flex-shrink:0}
+
+.table-card{background:var(--panel);border:1px solid var(--border);border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.04);overflow:hidden}
+.table-header{display:flex;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.table-title{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-right:4px}
+#search{background:#f4f3ee;border:1px solid rgba(0,0,0,.1);color:var(--text);padding:6px 12px;font-size:11px;border-radius:4px;width:220px;outline:none;font-family:inherit}
+#search:focus{border-color:var(--orange);background:#fff}
+select{background:#f4f3ee;border:1px solid rgba(0,0,0,.1);color:var(--text);padding:6px 10px;font-size:11px;border-radius:4px;outline:none;font-family:inherit;cursor:pointer}
+select:focus{border-color:var(--orange)}
+.spacer{flex:1}
+.result-count{font-size:10px;color:var(--dim);font-family:monospace}
+
+table{width:100%;border-collapse:collapse;font-size:11px}
+thead tr{background:#f4f3ee;border-bottom:2px solid rgba(0,0,0,.08)}
+th{padding:9px 14px;text-align:left;font-size:9px;font-weight:700;color:var(--dim);letter-spacing:.8px;text-transform:uppercase;white-space:nowrap}
+tbody tr{border-bottom:1px solid rgba(0,0,0,.05);transition:background .12s}
+tbody tr:hover{background:#faf9f7}
+td{padding:10px 14px;vertical-align:middle}
+.td-no{color:var(--dim);font-family:monospace;font-size:10px}
+.td-domain a{color:var(--orange);font-family:monospace;font-weight:600;font-size:11px;text-decoration:none}
+.td-domain a:hover{text-decoration:underline}
+.td-title{color:var(--dim);font-size:10px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tld-badge{display:inline-block;font-size:9px;font-family:monospace;padding:2px 7px;border-radius:3px;font-weight:600;background:rgba(232,98,10,.08);color:var(--orange);border:1px solid rgba(232,98,10,.15)}
+.kw-badge{display:inline-block;font-size:9px;padding:2px 7px;border-radius:3px;background:rgba(0,0,0,.05);color:var(--dim);border:1px solid rgba(0,0,0,.08);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cms-text{font-size:9px;color:var(--blue);font-family:monospace}
+.isp-text{font-size:9px;color:var(--dim);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ssl-yes{color:var(--green);font-size:10px;font-weight:700}
+.ssl-no{color:rgba(0,0,0,.2);font-size:10px}
+.date-text{font-size:9px;color:var(--dim);font-family:monospace;white-space:nowrap}
+.dash{color:rgba(0,0,0,.2)}
+.empty{text-align:center;padding:48px;color:var(--dim);font-size:12px}
+
+.pagination{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-top:1px solid var(--border);background:#faf9f7}
+.pg-info{font-size:10px;color:var(--dim);font-family:monospace}
+.pg-btns{display:flex;gap:4px;flex-wrap:wrap}
+.pg-btn{background:#fff;border:1px solid rgba(0,0,0,.12);color:var(--text);padding:4px 12px;border-radius:4px;font-size:10px;cursor:pointer;font-family:inherit;transition:all .12s}
+.pg-btn:hover:not([disabled]){border-color:var(--orange);color:var(--orange)}
+.pg-btn[disabled]{opacity:.35;cursor:not-allowed}
+.pg-btn.active{background:var(--orange);border-color:var(--orange);color:#fff}
+#loading{text-align:center;padding:40px;color:var(--dim);font-size:11px}
+</style>
+</head>
+<body>
+
+<div id="nav">
+  <div class="nav-logo">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <circle cx="6" cy="6" r="4.5" stroke="#e8620a" stroke-width="1.5"/>
+      <line x1="9.5" y1="9.5" x2="14" y2="14" stroke="#e8620a" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+    DORKSCAN
+  </div>
+  <span class="nav-sub">Domain Intelligence Viewer</span>
+  <div id="total-badge">memuat...</div>
+</div>
+
+<div id="main">
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-label">Total Domain</div><div class="stat-value" id="s-total">—</div><div class="stat-sub">domain unik terindeks</div></div>
+    <div class="stat-card"><div class="stat-label">TLD Terbanyak</div><div class="stat-value" style="font-size:18px;padding-top:4px" id="s-tld">—</div><div class="stat-sub" id="s-tld-sub">—</div></div>
+    <div class="stat-card"><div class="stat-label">CMS Dominan</div><div class="stat-value" style="font-size:18px;padding-top:4px" id="s-cms">—</div><div class="stat-sub" id="s-cms-sub">—</div></div>
+    <div class="stat-card"><div class="stat-label">ISP Terbanyak</div><div class="stat-value" style="font-size:13px;padding-top:8px" id="s-isp">—</div><div class="stat-sub" id="s-isp-sub">—</div></div>
+  </div>
+
+  <div class="charts-row">
+    <div class="chart-card"><div class="chart-title">TLD Breakdown</div><div id="chart-tld"></div></div>
+    <div class="chart-card"><div class="chart-title">CMS Distribution</div><div id="chart-cms"></div></div>
+    <div class="chart-card"><div class="chart-title">Top Keyword</div><div id="chart-kw"></div></div>
+  </div>
+
+  <div class="table-card">
+    <div class="table-header">
+      <span class="table-title">Domain List</span>
+      <input id="search" type="text" placeholder="Cari domain atau judul...">
+      <select id="tld-filter"><option value="">Semua TLD</option></select>
+      <select id="kw-filter"><option value="">Semua Keyword</option></select>
+      <div class="spacer"></div>
+      <span class="result-count" id="result-count"></span>
+    </div>
+    <div id="loading">Memuat data...</div>
+    <div id="table-wrap" style="display:none;overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>Domain</th><th>Judul</th><th>TLD</th>
+            <th>Keyword</th><th>CMS</th><th>ISP</th><th>SSL</th><th>Ditemukan</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="pagination" id="pagination" style="display:none">
+      <span class="pg-info" id="pg-info"></span>
+      <div class="pg-btns" id="pg-btns"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+var currentPage = 1;
+
+function esc(s){
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmt(n){ return Number(n).toLocaleString('id'); }
+
+function renderBars(id, entries, max){
+  var el = document.getElementById(id);
+  el.innerHTML = entries.map(function(e){
+    var pct = (e[1]/max*100).toFixed(1);
+    return '<div class="bar-row">'+
+      '<span class="bar-label" title="'+esc(e[0])+'">'+esc(e[0])+'</span>'+
+      '<div class="bar-track"><div class="bar-fill" style="width:'+pct+'%"></div></div>'+
+      '<span class="bar-count">'+fmt(e[1])+'</span>'+
+      '</div>';
+  }).join('');
+}
+
+function loadStats(){
+  fetch('/api/stats').then(function(r){ return r.json(); }).then(function(s){
+    document.getElementById('s-total').textContent = fmt(s.total);
+    document.getElementById('total-badge').textContent = fmt(s.total) + ' DOMAIN';
+
+    var tlds = Object.entries(s.by_tld).sort(function(a,b){return b[1]-a[1];});
+    var cmss = Object.entries(s.by_cms).sort(function(a,b){return b[1]-a[1];});
+    var isps = Object.entries(s.by_isp).sort(function(a,b){return b[1]-a[1];});
+    var kws  = Object.entries(s.by_keyword).sort(function(a,b){return b[1]-a[1];});
+
+    if(tlds[0]){ document.getElementById('s-tld').textContent=tlds[0][0]; document.getElementById('s-tld-sub').textContent=fmt(tlds[0][1])+' domain'; }
+    if(cmss[0]){ document.getElementById('s-cms').textContent=cmss[0][0]; document.getElementById('s-cms-sub').textContent=fmt(cmss[0][1])+' domain'; }
+    if(isps[0]){ document.getElementById('s-isp').textContent=isps[0][0]; document.getElementById('s-isp-sub').textContent=fmt(isps[0][1])+' domain'; }
+
+    var maxTld = tlds[0] ? tlds[0][1] : 1;
+    var maxCms = cmss[0] ? cmss[0][1] : 1;
+    var maxKw  = kws[0]  ? kws[0][1]  : 1;
+
+    renderBars('chart-tld', tlds.slice(0,8), maxTld);
+    renderBars('chart-cms', cmss.slice(0,8), maxCms);
+    renderBars('chart-kw',  kws.slice(0,10), maxKw);
+
+    var tldSel = document.getElementById('tld-filter');
+    tlds.forEach(function(t){
+      var o = document.createElement('option');
+      o.value = t[0]; o.textContent = t[0]+' ('+fmt(t[1])+')';
+      tldSel.appendChild(o);
+    });
+
+    var kwSel = document.getElementById('kw-filter');
+    kws.forEach(function(k){
+      var o = document.createElement('option');
+      o.value = k[0]; o.textContent = k[0]+' ('+fmt(k[1])+')';
+      kwSel.appendChild(o);
+    });
+  });
+}
+
+function loadDomains(page){
+  if(page) currentPage = page;
+  var search  = document.getElementById('search').value;
+  var tld     = document.getElementById('tld-filter').value;
+  var keyword = document.getElementById('kw-filter').value;
+
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('table-wrap').style.display = 'none';
+  document.getElementById('pagination').style.display = 'none';
+
+  var params = 'page='+currentPage+'&search='+encodeURIComponent(search)+'&tld='+encodeURIComponent(tld)+'&keyword='+encodeURIComponent(keyword);
+
+  fetch('/api/domains?'+params).then(function(r){ return r.json(); }).then(function(d){
+    var start = (d.page-1)*d.per_page+1;
+    var end   = Math.min(d.page*d.per_page, d.total);
+
+    document.getElementById('result-count').textContent = d.total ? (start+'–'+end+' dari '+fmt(d.total)) : '0 hasil';
+
+    var tbody = document.getElementById('tbody');
+    if(!d.data || d.data.length===0){
+      tbody.innerHTML = '<tr><td colspan="9"><div class="empty">Tidak ada domain ditemukan</div></td></tr>';
+    } else {
+      tbody.innerHTML = d.data.map(function(r,i){
+        var num = (start+i).toString().padStart(5,'0');
+        var url = r.url || 'https://'+r.domain;
+        var title = esc(r.title) || '<span class="dash">—</span>';
+        var cms   = r.cms ? '<span class="cms-text">'+esc(r.cms)+'</span>' : '<span class="dash">—</span>';
+        var isp   = r.isp ? '<span class="isp-text" title="'+esc(r.isp)+'">'+esc(r.isp)+'</span>' : '<span class="dash">—</span>';
+        var ssl   = r.ssl ? '<span class="ssl-yes">✓ SSL</span>' : '<span class="ssl-no">—</span>';
+        var date  = (r.first_seen||'').substring(0,10) || '—';
+        var kw    = r.keyword_hit ? '<span class="kw-badge" title="'+esc(r.keyword_hit)+'">'+esc(r.keyword_hit)+'</span>' : '<span class="dash">—</span>';
+        return '<tr>'+
+          '<td class="td-no">'+num+'</td>'+
+          '<td class="td-domain"><a href="'+url+'" target="_blank" rel="noopener">'+esc(r.domain)+'</a></td>'+
+          '<td class="td-title" title="'+esc(r.title)+'">'+title+'</td>'+
+          '<td><span class="tld-badge">'+esc(r.tld)+'</span></td>'+
+          '<td>'+kw+'</td>'+
+          '<td>'+cms+'</td>'+
+          '<td>'+isp+'</td>'+
+          '<td>'+ssl+'</td>'+
+          '<td class="date-text">'+date+'</td>'+
+          '</tr>';
+      }).join('');
+    }
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('table-wrap').style.display = 'block';
+
+    if(d.total > d.per_page){
+      document.getElementById('pagination').style.display = 'flex';
+      document.getElementById('pg-info').textContent = 'Halaman '+d.page+' / '+d.pages+' · '+fmt(d.total)+' domain';
+      renderPagination(d.page, d.pages);
+    }
+  });
+}
+
+function renderPagination(cur, total){
+  var pages = [1];
+  if(cur > 3) pages.push('...');
+  for(var i=Math.max(2,cur-1); i<=Math.min(total-1,cur+1); i++) pages.push(i);
+  if(cur < total-2) pages.push('...');
+  if(total > 1) pages.push(total);
+
+  var html = '<button class="pg-btn" onclick="loadDomains('+(cur-1)+')" '+(cur<=1?'disabled':'')+'>← Prev</button>';
+  pages.forEach(function(p){
+    if(p==='...'){
+      html += '<span style="padding:4px 4px;color:var(--dim);font-size:10px">…</span>';
+    } else {
+      html += '<button class="pg-btn'+(p===cur?' active':'')+'" onclick="loadDomains('+p+')">'+p+'</button>';
+    }
+  });
+  html += '<button class="pg-btn" onclick="loadDomains('+(cur+1)+')" '+(cur>=total?'disabled':'')+'>Next →</button>';
+  document.getElementById('pg-btns').innerHTML = html;
+}
+
+var _debTimer;
+document.getElementById('search').addEventListener('input', function(){
+  clearTimeout(_debTimer);
+  _debTimer = setTimeout(function(){ currentPage=1; loadDomains(); }, 400);
+});
+document.getElementById('tld-filter').addEventListener('change', function(){ currentPage=1; loadDomains(); });
+document.getElementById('kw-filter').addEventListener('change',  function(){ currentPage=1; loadDomains(); });
+
+loadStats();
+loadDomains(1);
+</script>
+</body>
+</html>

@@ -40,6 +40,7 @@ func init() {
 	rootCmd.AddCommand(scanCmd)
 	rootCmd.AddCommand(exportCmd)
 	rootCmd.AddCommand(statsCmd)
+	rootCmd.AddCommand(serveCmd)
 
 	rootCmd.CompletionOptions.HiddenDefaultCmd = true
 
@@ -49,7 +50,7 @@ func init() {
 	})
 
 	// Subcommands: styled flag list
-	for _, sub := range []*cobra.Command{scanCmd, exportCmd, statsCmd} {
+	for _, sub := range []*cobra.Command{scanCmd, exportCmd, statsCmd, serveCmd} {
 		sub.SetHelpFunc(subHelpFunc)
 	}
 }
@@ -96,6 +97,7 @@ func helpTemplate() string {
   ` + clOrange + `scan` + clReset + `    Jalankan dork scan untuk mengumpulkan domain
   ` + clOrange + `export` + clReset + `  Export hasil ke CSV, JSON, atau TXT
   ` + clOrange + `stats` + clReset + `   Tampilkan statistik dari database
+  ` + clOrange + `serve` + clReset + `   Jalankan web UI untuk melihat hasil scan
 
 ` + clBold + clCyan + `QUICK START` + clReset + `
   ` + clDim + `# scan + enrich domain pemerintah & sekolah` + clReset + `
