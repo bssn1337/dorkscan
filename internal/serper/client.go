@@ -50,7 +50,7 @@ func (c *Client) Search(query string, page int) (*Result, error) {
 		"q":    query,
 		"gl":   "id",
 		"hl":   "id",
-		"num":  100,
+		"num":  10,
 		"page": page + 1,
 	}
 
