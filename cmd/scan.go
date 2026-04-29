@@ -41,6 +41,7 @@ var (
 	flagConcurrency int
 	flagDorkFile    string
 	flagVerbose     bool
+	flagFrom        int
 )
 
 func init() {
@@ -56,6 +57,7 @@ func init() {
 	scanCmd.Flags().IntVar(&flagConcurrency, "concurrency", 20, "Jumlah worker enrichment paralel")
 	scanCmd.Flags().StringVar(&flagDorkFile, "dork-file", "", "File template dork kustom (satu template per baris)")
 	scanCmd.Flags().BoolVarP(&flagVerbose, "verbose", "v", false, "Tampilkan detail tiap domain yang ditemukan")
+	scanCmd.Flags().IntVarP(&flagFrom, "from", "f", 0, "Skip N dork pertama — untuk resume scan yang terputus")
 
 	scanCmd.MarkFlagsMutuallyExclusive("key", "keys")
 }
@@ -96,12 +98,23 @@ func runScan(cmd *cobra.Command, args []string) error {
 	}
 
 	dorks := dork.Generate(tlds, keywords, templates)
+	totalDorks := len(dorks)
+
+	if flagFrom > 0 {
+		if flagFrom >= totalDorks {
+			return fmt.Errorf("--from %d melebihi total dork (%d)", flagFrom, totalDorks)
+		}
+		dorks = dorks[flagFrom:]
+	}
 
 	// Banner
 	fmt.Println()
 	fmt.Printf("  ▸ TLD target   : %s\n", strings.Join(tlds, ", "))
 	fmt.Printf("  ▸ Keywords     : %s\n", strings.Join(keywords, ", "))
-	fmt.Printf("  ▸ Dorks        : %d kombinasi\n", len(dorks))
+	fmt.Printf("  ▸ Dorks        : %d kombinasi\n", totalDorks)
+	if flagFrom > 0 {
+		fmt.Printf("  ▸ Lanjut dari : dork ke-%d (skip %d)\n", flagFrom+1, flagFrom)
+	}
 	fmt.Printf("  ▸ API keys     : %d key\n", len(keys))
 	fmt.Printf("  ▸ Depth        : %d halaman/query\n", flagDepth)
 	fmt.Printf("  ▸ Enrichment   : %v\n", flagEnrich)
@@ -167,7 +180,7 @@ func runScan(cmd *cobra.Command, args []string) error {
 			break
 		}
 
-		fmt.Printf("\n\n  [%d/%d] %s\n", i+1, len(dorks), d.Query)
+		fmt.Printf("\n\n  [%d/%d] %s\n", flagFrom+i+1, totalDorks, d.Query)
 
 		for page := 0; page < flagDepth; page++ {
 			if flagLimit > 0 && atomic.LoadInt64(&collected) >= int64(flagLimit) {
