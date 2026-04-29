@@ -1,0 +1,11 @@
+# Template dork kustom — satu per baris
+# Gunakan {tld} dan {keyword} sebagai placeholder
+# Baris diawali # = komentar
+
+site:{tld} "{keyword}"
+site:{tld} intitle:"{keyword}"
+site:{tld} inurl:"{keyword}"
+site:{tld} "{keyword}" filetype:php
+site:{tld} "{keyword}" intext:"daftar sekarang"
+site:{tld} "{keyword}" intext:"link alternatif"
+site:{tld} "{keyword}" intext:"deposit pulsa"

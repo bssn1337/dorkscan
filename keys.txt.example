@@ -1,0 +1,7 @@
+# Serper.dev API keys — satu per baris
+# Daftar di https://serper.dev (free: 2500 query/bulan per akun)
+# Baris diawali # = komentar, diabaikan
+
+abc123xxxx_api_key_serper_1
+def456xxxx_api_key_serper_2
+ghi789xxxx_api_key_serper_3
