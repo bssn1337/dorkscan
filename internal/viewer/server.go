@@ -129,7 +129,7 @@ func (s *Server) handleDomains(w http.ResponseWriter, r *http.Request) {
 
 	search := strings.TrimSpace(q.Get("search"))
 	tld := strings.TrimSpace(q.Get("tld"))
-	keyword := strings.TrimSpace(q.Get("keyword"))
+	isp := strings.TrimSpace(q.Get("isp"))
 
 	where := "WHERE 1=1"
 	args := []interface{}{}
@@ -142,9 +142,9 @@ func (s *Server) handleDomains(w http.ResponseWriter, r *http.Request) {
 		where += " AND tld=?"
 		args = append(args, tld)
 	}
-	if keyword != "" {
-		where += " AND keyword_hit=?"
-		args = append(args, keyword)
+	if isp != "" {
+		where += " AND isp=?"
+		args = append(args, isp)
 	}
 
 	var total int

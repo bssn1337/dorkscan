@@ -52,8 +52,20 @@ func runEnrich(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	// Pisah: domain yg sudah punya IP (hanya perlu ISP) vs yg perlu full enrich
+	var needISP []*storage.Domain
+	var needFull []*storage.Domain
+	for _, d := range domains {
+		if d.IP != "" {
+			needISP = append(needISP, d)
+		} else {
+			needFull = append(needFull, d)
+		}
+	}
+
 	fmt.Printf("\n  ▸ Database      : %s\n", flagEnrichDB)
-	fmt.Printf("  ▸ Domain pending: %d\n", len(domains))
+	fmt.Printf("  ▸ ISP pending   : %d domain (batch lookup)\n", len(needISP))
+	fmt.Printf("  ▸ Full pending  : %d domain (DNS+CMS+ISP)\n", len(needFull))
 	fmt.Printf("  ▸ Concurrency   : %d worker\n\n", flagEnrichConcurrency)
 
 	start := time.Now()
@@ -61,46 +73,71 @@ func runEnrich(cmd *cobra.Command, args []string) error {
 
 	var done int64
 	var failed int64
-	total := int64(len(domains))
 
-	jobs := make(chan *storage.Domain, flagEnrichConcurrency*2)
-	var wg sync.WaitGroup
-
-	for i := 0; i < flagEnrichConcurrency; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for d := range jobs {
-				enricher.Enrich(d)
-				if err := db.UpdateEnrich(d); err != nil {
-					atomic.AddInt64(&failed, 1)
+	// Phase 1: batch ISP lookup untuk domain yang sudah punya IP
+	if len(needISP) > 0 {
+		fmt.Printf("  ► Phase 1: batch ISP lookup (%d domain)...\n", len(needISP))
+		enricher.BatchLookupISP(needISP)
+		for _, d := range needISP {
+			if err := db.UpdateEnrich(d); err != nil {
+				atomic.AddInt64(&failed, 1)
+			} else {
+				n := atomic.AddInt64(&done, 1)
+				if flagEnrichVerbose {
+					fmt.Printf("  [+] %-45s  %s\n", d.Domain, d.ISP)
 				} else {
-					n := atomic.AddInt64(&done, 1)
-					if flagEnrichVerbose {
-						cms := d.CMS
-						if cms == "" {
-							cms = "?"
-						}
-						isp := d.ISP
-						if isp == "" {
-							isp = "?"
-						}
-						fmt.Printf("  [+] %-45s  %-12s  %s\n", d.Domain, cms, isp)
-					} else {
-						fmt.Printf("\r  ► Ter-enrich: %d/%d domain", n, total)
-					}
+					fmt.Printf("\r  ► ISP: %d/%d", n, int64(len(needISP)))
 				}
 			}
-		}()
+		}
+		fmt.Printf("\r  ✓ Phase 1 selesai — %d domain ISP terisi\n", atomic.LoadInt64(&done))
 	}
 
-	for _, d := range domains {
-		jobs <- d
-	}
-	close(jobs)
-	wg.Wait()
+	// Phase 2: full enrich (DNS + ISP + CMS) untuk domain tanpa IP
+	if len(needFull) > 0 {
+		fmt.Printf("  ► Phase 2: full enrich (%d domain)...\n", len(needFull))
+		phase2Start := atomic.LoadInt64(&done)
 
-	fmt.Printf("\n\n  ✓ Enrich selesai — %d berhasil, %d gagal (%.1fs)\n",
+		jobs := make(chan *storage.Domain, flagEnrichConcurrency*2)
+		var wg sync.WaitGroup
+
+		for i := 0; i < flagEnrichConcurrency; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for d := range jobs {
+					enricher.Enrich(d)
+					if err := db.UpdateEnrich(d); err != nil {
+						atomic.AddInt64(&failed, 1)
+					} else {
+						n := atomic.AddInt64(&done, 1)
+						if flagEnrichVerbose {
+							cms := d.CMS
+							if cms == "" {
+								cms = "?"
+							}
+							isp := d.ISP
+							if isp == "" {
+								isp = "?"
+							}
+							fmt.Printf("  [+] %-45s  %-12s  %s\n", d.Domain, cms, isp)
+						} else {
+							fmt.Printf("\r  ► Full: %d/%d domain", n-phase2Start, int64(len(needFull)))
+						}
+					}
+				}
+			}()
+		}
+
+		for _, d := range needFull {
+			jobs <- d
+		}
+		close(jobs)
+		wg.Wait()
+		fmt.Println()
+	}
+
+	fmt.Printf("\n  ✓ Enrich selesai — %d berhasil, %d gagal (%.1fs)\n",
 		atomic.LoadInt64(&done),
 		atomic.LoadInt64(&failed),
 		time.Since(start).Seconds(),

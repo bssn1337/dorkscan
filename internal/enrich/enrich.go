@@ -1,6 +1,7 @@
 package enrich
 
 import (
+	"bytes"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -13,9 +14,10 @@ import (
 )
 
 type Enricher struct {
-	sem     chan struct{}
-	httpCli *http.Client
-	ipCli   *http.Client
+	sem           chan struct{}
+	ipRateLimiter chan struct{}
+	httpCli       *http.Client
+	ipCli         *http.Client
 }
 
 func New(concurrency int) *Enricher {
@@ -23,8 +25,9 @@ func New(concurrency int) *Enricher {
 		TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
 		DisableKeepAlives: true,
 	}
-	return &Enricher{
-		sem: make(chan struct{}, concurrency),
+	e := &Enricher{
+		sem:           make(chan struct{}, concurrency),
+		ipRateLimiter: make(chan struct{}, 40),
 		httpCli: &http.Client{
 			Timeout:   10 * time.Second,
 			Transport: transport,
@@ -37,6 +40,17 @@ func New(concurrency int) *Enricher {
 		},
 		ipCli: &http.Client{Timeout: 5 * time.Second},
 	}
+	// ip-api.com free tier: 45 req/menit → isi 1 token tiap 1.4 detik
+	go func() {
+		ticker := time.NewTicker(1400 * time.Millisecond)
+		for range ticker.C {
+			select {
+			case e.ipRateLimiter <- struct{}{}:
+			default:
+			}
+		}
+	}()
+	return e
 }
 
 type ipAPI struct {
@@ -63,6 +77,7 @@ func (e *Enricher) Enrich(d *storage.Domain) {
 }
 
 func (e *Enricher) lookupISP(d *storage.Domain) {
+	<-e.ipRateLimiter
 	url := fmt.Sprintf("http://ip-api.com/json/%s?fields=status,isp,as,country,hosting", d.IP)
 	resp, err := e.ipCli.Get(url)
 	if err != nil {
@@ -78,6 +93,55 @@ func (e *Enricher) lookupISP(d *storage.Domain) {
 	d.ASN = r.AS
 	d.Country = r.Country
 	d.Hosting = r.Hosting
+}
+
+// BatchLookupISP mengisi ISP untuk domain yang sudah punya IP menggunakan
+// ip-api.com batch endpoint (100 IP per request, jauh lebih efisien).
+func (e *Enricher) BatchLookupISP(domains []*storage.Domain) {
+	const batchSize = 100
+	for i := 0; i < len(domains); i += batchSize {
+		end := i + batchSize
+		if end > len(domains) {
+			end = len(domains)
+		}
+		batch := domains[i:end]
+
+		ips := make([]string, len(batch))
+		for j, d := range batch {
+			ips[j] = d.IP
+		}
+
+		body, err := json.Marshal(ips)
+		if err != nil {
+			continue
+		}
+
+		<-e.ipRateLimiter
+		resp, err := e.ipCli.Post(
+			"http://ip-api.com/batch?fields=status,isp,as,country,hosting",
+			"application/json",
+			bytes.NewReader(body),
+		)
+		if err != nil {
+			continue
+		}
+
+		var results []ipAPI
+		json.NewDecoder(resp.Body).Decode(&results)
+		resp.Body.Close()
+
+		for j, r := range results {
+			if j >= len(batch) {
+				break
+			}
+			if r.Status == "success" {
+				batch[j].ISP = r.ISP
+				batch[j].ASN = r.AS
+				batch[j].Country = r.Country
+				batch[j].Hosting = r.Hosting
+			}
+		}
+	}
 }
 
 func (e *Enricher) detectTech(d *storage.Domain) {

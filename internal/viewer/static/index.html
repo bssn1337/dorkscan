@@ -94,7 +94,7 @@ td{padding:10px 14px;vertical-align:middle}
   <div class="charts-row">
     <div class="chart-card"><div class="chart-title">TLD Breakdown</div><div id="chart-tld"></div></div>
     <div class="chart-card"><div class="chart-title">CMS Distribution</div><div id="chart-cms"></div></div>
-    <div class="chart-card"><div class="chart-title">Top Keyword</div><div id="chart-kw"></div></div>
+    <div class="chart-card"><div class="chart-title">Top ISP</div><div id="chart-kw"></div></div>
   </div>
 
   <div class="table-card">
@@ -102,7 +102,7 @@ td{padding:10px 14px;vertical-align:middle}
       <span class="table-title">Domain List</span>
       <input id="search" type="text" placeholder="Cari domain atau judul...">
       <select id="tld-filter"><option value="">Semua TLD</option></select>
-      <select id="kw-filter"><option value="">Semua Keyword</option></select>
+      <select id="isp-filter"><option value="">Semua ISP</option></select>
       <div class="spacer"></div>
       <span class="result-count" id="result-count"></span>
     </div>
@@ -162,11 +162,11 @@ function loadStats(){
 
     var maxTld = tlds[0] ? tlds[0][1] : 1;
     var maxCms = cmss[0] ? cmss[0][1] : 1;
-    var maxKw  = kws[0]  ? kws[0][1]  : 1;
+    var maxIsp = isps[0] ? isps[0][1] : 1;
 
     renderBars('chart-tld', tlds.slice(0,8), maxTld);
     renderBars('chart-cms', cmss.slice(0,8), maxCms);
-    renderBars('chart-kw',  kws.slice(0,10), maxKw);
+    renderBars('chart-kw',  isps.slice(0,10), maxIsp);
 
     var tldSel = document.getElementById('tld-filter');
     tlds.forEach(function(t){
@@ -175,12 +175,13 @@ function loadStats(){
       tldSel.appendChild(o);
     });
 
-    var kwSel = document.getElementById('kw-filter');
-    kws.forEach(function(k){
+    var ispSel = document.getElementById('isp-filter');
+    isps.filter(function(t){ return t[0] !== 'Unknown'; }).slice(0,30).forEach(function(t){
       var o = document.createElement('option');
-      o.value = k[0]; o.textContent = k[0]+' ('+fmt(k[1])+')';
-      kwSel.appendChild(o);
+      o.value = t[0]; o.textContent = t[0]+' ('+fmt(t[1])+')';
+      ispSel.appendChild(o);
     });
+
   });
 }
 
@@ -188,13 +189,13 @@ function loadDomains(page){
   if(page) currentPage = page;
   var search  = document.getElementById('search').value;
   var tld     = document.getElementById('tld-filter').value;
-  var keyword = document.getElementById('kw-filter').value;
+  var isp     = document.getElementById('isp-filter').value;
 
   document.getElementById('loading').style.display = 'block';
   document.getElementById('table-wrap').style.display = 'none';
   document.getElementById('pagination').style.display = 'none';
 
-  var params = 'page='+currentPage+'&search='+encodeURIComponent(search)+'&tld='+encodeURIComponent(tld)+'&keyword='+encodeURIComponent(keyword);
+  var params = 'page='+currentPage+'&search='+encodeURIComponent(search)+'&tld='+encodeURIComponent(tld)+'&isp='+encodeURIComponent(isp);
 
   fetch('/api/domains?'+params).then(function(r){ return r.json(); }).then(function(d){
     var start = (d.page-1)*d.per_page+1;
@@ -265,7 +266,7 @@ document.getElementById('search').addEventListener('input', function(){
   _debTimer = setTimeout(function(){ currentPage=1; loadDomains(); }, 400);
 });
 document.getElementById('tld-filter').addEventListener('change', function(){ currentPage=1; loadDomains(); });
-document.getElementById('kw-filter').addEventListener('change',  function(){ currentPage=1; loadDomains(); });
+document.getElementById('isp-filter').addEventListener('change',  function(){ currentPage=1; loadDomains(); });
 
 loadStats();
 loadDomains(1);

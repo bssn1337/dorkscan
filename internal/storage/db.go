@@ -169,8 +169,8 @@ func (d *DB) GetAll() ([]*Domain, error) {
 }
 
 func (d *DB) GetUnenriched(limit int) ([]*Domain, error) {
-	q := `SELECT domain, url, tld FROM domains
-	      WHERE (ip IS NULL OR ip='') AND (cms IS NULL OR cms='') AND status_code=0
+	q := `SELECT domain, url, tld, COALESCE(ip,'') FROM domains
+	      WHERE (isp IS NULL OR isp='')
 	      ORDER BY id`
 	if limit > 0 {
 		q += fmt.Sprintf(" LIMIT %d", limit)
@@ -183,7 +183,7 @@ func (d *DB) GetUnenriched(limit int) ([]*Domain, error) {
 	var out []*Domain
 	for rows.Next() {
 		var r Domain
-		rows.Scan(&r.Domain, &r.URL, &r.TLD)
+		rows.Scan(&r.Domain, &r.URL, &r.TLD, &r.IP)
 		out = append(out, &r)
 	}
 	return out, rows.Err()
