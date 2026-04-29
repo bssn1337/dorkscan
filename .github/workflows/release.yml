@@ -51,8 +51,5 @@ jobs:
 
             ### Quick Start
             ```bash
-            dorkscan scan --tld .go.id,.ac.id,.sch.id \
-                          --keyword "slot,judi,togel" \
-                          --keys keys.txt \
-                          --enrich
+            dorkscan scan -t .go.id,.ac.id,.sch.id -k "slot,judi,togel" --keys keys.txt -e
             ```

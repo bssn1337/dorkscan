@@ -22,9 +22,9 @@ import (
 var scanCmd = &cobra.Command{
 	Use:   "scan",
 	Short: "Jalankan dork scan untuk mengumpulkan domain",
-	Example: `  dorkscan scan --tld .go.id --keyword "slot,judi" --keys keys.txt
-  dorkscan scan --tld .ac.id,.sch.id --keyword "togel,casino" --keys keys.txt --enrich --depth 5
-  dorkscan scan --tld .go.id --keyword "judi" --key YOUR_API_KEY --out hasil.db`,
+	Example: `  dorkscan scan -t .go.id -k "slot,judi" --keys keys.txt
+  dorkscan scan -t .ac.id,.sch.id -k "togel,casino" --keys keys.txt -e -d 5
+  dorkscan scan -t .go.id -k "judi" --key YOUR_API_KEY -o hasil.db`,
 	RunE: runScan,
 }
 
@@ -44,14 +44,14 @@ var (
 )
 
 func init() {
-	scanCmd.Flags().StringVar(&flagTLD, "tld", "", "Target TLD — bisa lebih dari satu (contoh: .go.id,.ac.id,.sch.id) [wajib]")
+	scanCmd.Flags().StringVarP(&flagTLD, "tld", "t", "", "Target TLD — bisa lebih dari satu (contoh: .go.id,.ac.id,.sch.id) [wajib]")
 	scanCmd.Flags().StringVarP(&flagKeyword, "keyword", "k", "", "Kata kunci pencarian, pisahkan koma (contoh: \"slot,judi,togel\") [wajib]")
 	scanCmd.Flags().StringVar(&flagKeysFile, "keys", "", "Path ke file berisi Serper API key (satu per baris)")
 	scanCmd.Flags().StringVar(&flagKey, "key", "", "Serper API key tunggal")
 	scanCmd.Flags().StringVarP(&flagOut, "out", "o", "results.db", "Output database SQLite")
-	scanCmd.Flags().BoolVar(&flagEnrich, "enrich", false, "Aktifkan enrichment: IP, ISP, CMS detection")
-	scanCmd.Flags().IntVar(&flagDepth, "depth", 3, "Jumlah halaman per query (1 halaman = 10 hasil)")
-	scanCmd.Flags().IntVar(&flagLimit, "limit", 0, "Batas maksimal domain yang dikumpulkan (0 = unlimited)")
+	scanCmd.Flags().BoolVarP(&flagEnrich, "enrich", "e", false, "Aktifkan enrichment: IP, ISP, CMS detection")
+	scanCmd.Flags().IntVarP(&flagDepth, "depth", "d", 3, "Jumlah halaman per query (1 halaman = 10 hasil)")
+	scanCmd.Flags().IntVarP(&flagLimit, "limit", "l", 0, "Batas maksimal domain yang dikumpulkan (0 = unlimited)")
 	scanCmd.Flags().IntVar(&flagDelay, "delay", 600, "Jeda antar API request dalam ms (default: 600)")
 	scanCmd.Flags().IntVar(&flagConcurrency, "concurrency", 20, "Jumlah worker enrichment paralel")
 	scanCmd.Flags().StringVar(&flagDorkFile, "dork-file", "", "File template dork kustom (satu template per baris)")
