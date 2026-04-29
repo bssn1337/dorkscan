@@ -1,0 +1,58 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - os: linux
+            arch: amd64
+            name: dorkscan-linux-amd64
+          - os: linux
+            arch: arm64
+            name: dorkscan-linux-arm64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Build
+        env:
+          CGO_ENABLED: 0
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+        run: |
+          go build -ldflags="-s -w -X main.version=${{ github.ref_name }}" \
+            -o dist/${{ matrix.name }} .
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/${{ matrix.name }}
+          body: |
+            ## Dorkscan ${{ github.ref_name }}
+
+            ### Install (Linux amd64)
+            ```bash
+            curl -skL https://raw.githubusercontent.com/bssn1337/dorkscan/master/install.sh | bash
+            ```
+
+            ### Quick Start
+            ```bash
+            dorkscan scan --tld .go.id,.ac.id,.sch.id \
+                          --keyword "slot,judi,togel" \
+                          --keys keys.txt \
+                          --enrich
+            ```
