@@ -73,8 +73,10 @@ func (c *Client) Search(query string, page int) (*Result, error) {
 		}
 		defer resp.Body.Close()
 
-		if resp.StatusCode == 429 {
-			// Key exhausted, rotate
+		if resp.StatusCode == 429 || resp.StatusCode == 400 {
+			// Key exhausted atau rate limited, rotate ke key berikutnya
+			resp.Body.Close()
+			time.Sleep(300 * time.Millisecond)
 			continue
 		}
 		if resp.StatusCode != 200 {
