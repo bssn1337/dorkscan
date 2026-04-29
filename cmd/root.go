@@ -38,6 +38,7 @@ func Execute() {
 
 func init() {
 	rootCmd.AddCommand(scanCmd)
+	rootCmd.AddCommand(enrichCmd)
 	rootCmd.AddCommand(exportCmd)
 	rootCmd.AddCommand(statsCmd)
 	rootCmd.AddCommand(serveCmd)
@@ -50,7 +51,7 @@ func init() {
 	})
 
 	// Subcommands: styled flag list
-	for _, sub := range []*cobra.Command{scanCmd, exportCmd, statsCmd, serveCmd} {
+	for _, sub := range []*cobra.Command{scanCmd, enrichCmd, exportCmd, statsCmd, serveCmd} {
 		sub.SetHelpFunc(subHelpFunc)
 	}
 }
@@ -95,6 +96,7 @@ func helpTemplate() string {
 
 ` + clBold + clCyan + `COMMANDS` + clReset + `
   ` + clOrange + `scan` + clReset + `    Jalankan dork scan untuk mengumpulkan domain
+  ` + clOrange + `enrich` + clReset + `  Isi data CMS, ISP, SSL untuk domain yang belum ter-enrich
   ` + clOrange + `export` + clReset + `  Export hasil ke CSV, JSON, atau TXT
   ` + clOrange + `stats` + clReset + `   Tampilkan statistik dari database
   ` + clOrange + `serve` + clReset + `   Jalankan web UI untuk melihat hasil scan

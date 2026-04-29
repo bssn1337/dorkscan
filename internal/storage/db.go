@@ -2,6 +2,7 @@ package storage
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -165,6 +166,40 @@ func (d *DB) GetAll() ([]*Domain, error) {
 		out = append(out, &r)
 	}
 	return out, rows.Err()
+}
+
+func (d *DB) GetUnenriched(limit int) ([]*Domain, error) {
+	q := `SELECT domain, url, tld FROM domains
+	      WHERE (ip IS NULL OR ip='') AND (cms IS NULL OR cms='') AND status_code=0
+	      ORDER BY id`
+	if limit > 0 {
+		q += fmt.Sprintf(" LIMIT %d", limit)
+	}
+	rows, err := d.db.Query(q)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*Domain
+	for rows.Next() {
+		var r Domain
+		rows.Scan(&r.Domain, &r.URL, &r.TLD)
+		out = append(out, &r)
+	}
+	return out, rows.Err()
+}
+
+func (d *DB) UpdateEnrich(r *Domain) error {
+	_, err := d.db.Exec(`
+	UPDATE domains SET
+		ip=?, isp=?, asn=?, country=?, hosting=?,
+		cms=?, server=?, php_version=?, status_code=?, ssl=?
+	WHERE domain=?`,
+		r.IP, r.ISP, r.ASN, r.Country, b2i(r.Hosting),
+		r.CMS, r.Server, r.PHPVersion, r.StatusCode, b2i(r.SSL),
+		r.Domain,
+	)
+	return err
 }
 
 func (d *DB) Close() error { return d.db.Close() }
