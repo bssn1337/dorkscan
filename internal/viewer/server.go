@@ -41,6 +41,7 @@ type Stats struct {
 	ByCMS  map[string]int `json:"by_cms"`
 	ByISP  map[string]int `json:"by_isp"`
 	ByKW   map[string]int `json:"by_keyword"`
+	ByIP   map[string]int `json:"by_ip"`
 }
 
 type PageResult struct {
@@ -92,6 +93,10 @@ func (s *Server) buildWhere(q map[string][]string) (string, []interface{}) {
 	if v := get("cms"); v != "" {
 		where += " AND cms LIKE ?"
 		args = append(args, v+"%")
+	}
+	if v := get("ip"); v != "" {
+		where += " AND ip=?"
+		args = append(args, v)
 	}
 	return where, args
 }
@@ -152,6 +157,7 @@ func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
 		ByCMS: make(map[string]int),
 		ByISP: make(map[string]int),
 		ByKW:  make(map[string]int),
+		ByIP:  make(map[string]int),
 	}
 
 	s.db.QueryRow("SELECT COUNT(*) FROM domains").Scan(&stats.Total)
@@ -164,6 +170,7 @@ func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
 		{stats.ByCMS, "SELECT COALESCE(NULLIF(cms,''),'Unknown'), COUNT(*) FROM domains GROUP BY cms ORDER BY 2 DESC LIMIT 10"},
 		{stats.ByISP, "SELECT COALESCE(NULLIF(isp,''),'Unknown'), COUNT(*) FROM domains GROUP BY isp ORDER BY 2 DESC LIMIT 10"},
 		{stats.ByKW, "SELECT COALESCE(keyword_hit,'?'), COUNT(*) FROM domains GROUP BY keyword_hit ORDER BY 2 DESC LIMIT 15"},
+		{stats.ByIP, "SELECT ip, COUNT(*) as c FROM domains WHERE ip!='' GROUP BY ip HAVING c > 1 ORDER BY c DESC LIMIT 50"},
 	}
 
 	for _, q := range queries {

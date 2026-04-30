@@ -112,6 +112,7 @@ td{padding:10px 14px;vertical-align:middle}
       <select id="tld-filter"><option value="">Semua TLD</option></select>
       <select id="isp-filter"><option value="">Semua ISP</option></select>
       <select id="cms-filter"><option value="">Semua CMS</option></select>
+      <select id="ip-filter"><option value="">Semua IP</option></select>
       <div class="spacer"></div>
       <span class="result-count" id="result-count"></span>
       <div class="export-wrap" id="export-wrap">
@@ -258,6 +259,14 @@ function loadStats(){
       cmsSel.appendChild(o);
     });
 
+    var ipList = Object.entries(s.by_ip||{}).sort(function(a,b){return b[1]-a[1];});
+    var ipSel = document.getElementById('ip-filter');
+    ipList.forEach(function(t){
+      var o = document.createElement('option');
+      o.value = t[0]; o.textContent = t[0]+' ('+fmt(t[1])+' domain)';
+      ipSel.appendChild(o);
+    });
+
   });
 }
 
@@ -267,12 +276,13 @@ function loadDomains(page){
   var tld     = document.getElementById('tld-filter').value;
   var isp     = document.getElementById('isp-filter').value;
   var cms     = document.getElementById('cms-filter').value;
+  var ip      = document.getElementById('ip-filter').value;
 
   document.getElementById('loading').style.display = 'block';
   document.getElementById('table-wrap').style.display = 'none';
   document.getElementById('pagination').style.display = 'none';
 
-  var params = 'page='+currentPage+'&search='+encodeURIComponent(search)+'&tld='+encodeURIComponent(tld)+'&isp='+encodeURIComponent(isp)+'&cms='+encodeURIComponent(cms);
+  var params = 'page='+currentPage+'&search='+encodeURIComponent(search)+'&tld='+encodeURIComponent(tld)+'&isp='+encodeURIComponent(isp)+'&cms='+encodeURIComponent(cms)+'&ip='+encodeURIComponent(ip);
 
   fetch('/api/domains?'+params).then(function(r){ return r.json(); }).then(function(d){
     var start = (d.page-1)*d.per_page+1;
@@ -352,7 +362,8 @@ function doExport(fmt){
   var tld     = document.getElementById('tld-filter').value;
   var isp     = document.getElementById('isp-filter').value;
   var cms     = document.getElementById('cms-filter').value;
-  var url = '/api/export?format='+fmt+'&search='+encodeURIComponent(search)+'&tld='+encodeURIComponent(tld)+'&isp='+encodeURIComponent(isp)+'&cms='+encodeURIComponent(cms);
+  var ip2 = document.getElementById('ip-filter').value;
+  var url = '/api/export?format='+fmt+'&search='+encodeURIComponent(search)+'&tld='+encodeURIComponent(tld)+'&isp='+encodeURIComponent(isp)+'&cms='+encodeURIComponent(cms)+'&ip='+encodeURIComponent(ip2);
   window.location.href = url;
 }
 
@@ -364,6 +375,7 @@ document.getElementById('search').addEventListener('input', function(){
 document.getElementById('tld-filter').addEventListener('change', function(){ currentPage=1; loadDomains(); });
 document.getElementById('isp-filter').addEventListener('change',  function(){ currentPage=1; loadDomains(); });
 document.getElementById('cms-filter').addEventListener('change',  function(){ currentPage=1; loadDomains(); });
+document.getElementById('ip-filter').addEventListener('change',   function(){ currentPage=1; loadDomains(); });
 
 loadStats();
 loadDomains(1);
