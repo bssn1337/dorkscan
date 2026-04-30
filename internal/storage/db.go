@@ -169,8 +169,9 @@ func (d *DB) GetAll() ([]*Domain, error) {
 }
 
 func (d *DB) GetUnenriched(limit int) ([]*Domain, error) {
-	q := `SELECT domain, url, tld, COALESCE(ip,'') FROM domains
+	q := `SELECT domain, url, tld, COALESCE(ip,''), COALESCE(isp,'') FROM domains
 	      WHERE (isp IS NULL OR isp='')
+	         OR ((cms IS NULL OR cms='') AND status_code=0)
 	      ORDER BY id`
 	if limit > 0 {
 		q += fmt.Sprintf(" LIMIT %d", limit)
@@ -183,7 +184,7 @@ func (d *DB) GetUnenriched(limit int) ([]*Domain, error) {
 	var out []*Domain
 	for rows.Next() {
 		var r Domain
-		rows.Scan(&r.Domain, &r.URL, &r.TLD, &r.IP)
+		rows.Scan(&r.Domain, &r.URL, &r.TLD, &r.IP, &r.ISP)
 		out = append(out, &r)
 	}
 	return out, rows.Err()
@@ -192,9 +193,17 @@ func (d *DB) GetUnenriched(limit int) ([]*Domain, error) {
 func (d *DB) UpdateEnrich(r *Domain) error {
 	_, err := d.db.Exec(`
 	UPDATE domains SET
-		ip=?, isp=?, asn=?, country=?, hosting=?,
-		cms=?, server=?, php_version=?, status_code=?, ssl=?
-	WHERE domain=?`,
+		ip          = CASE WHEN ?1 != '' THEN ?1 ELSE ip END,
+		isp         = CASE WHEN ?2 != '' THEN ?2 ELSE isp END,
+		asn         = CASE WHEN ?3 != '' THEN ?3 ELSE asn END,
+		country     = CASE WHEN ?4 != '' THEN ?4 ELSE country END,
+		hosting     = CASE WHEN ?5 != 0  THEN ?5 ELSE hosting END,
+		cms         = CASE WHEN ?6 != '' THEN ?6 ELSE cms END,
+		server      = CASE WHEN ?7 != '' THEN ?7 ELSE server END,
+		php_version = CASE WHEN ?8 != '' THEN ?8 ELSE php_version END,
+		status_code = CASE WHEN ?9 != 0  THEN ?9 ELSE status_code END,
+		ssl         = CASE WHEN ?10 != 0 THEN ?10 ELSE ssl END
+	WHERE domain=?11`,
 		r.IP, r.ISP, r.ASN, r.Country, b2i(r.Hosting),
 		r.CMS, r.Server, r.PHPVersion, r.StatusCode, b2i(r.SSL),
 		r.Domain,

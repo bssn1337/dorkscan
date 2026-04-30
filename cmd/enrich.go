@@ -52,11 +52,13 @@ func runEnrich(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// Pisah: domain yg sudah punya IP (hanya perlu ISP) vs yg perlu full enrich
+	// Pisah berdasarkan apa yang masih kurang:
+	// - needISP : punya IP tapi ISP kosong → batch lookup
+	// - needFull: tidak punya IP atau ISP sudah ada tapi CMS/status kosong → full enrich
 	var needISP []*storage.Domain
 	var needFull []*storage.Domain
 	for _, d := range domains {
-		if d.IP != "" {
+		if d.IP != "" && d.ISP == "" {
 			needISP = append(needISP, d)
 		} else {
 			needFull = append(needFull, d)
