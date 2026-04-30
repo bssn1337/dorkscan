@@ -64,12 +64,79 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/", s.handleIndex)
 	mux.HandleFunc("/api/stats", s.handleStats)
 	mux.HandleFunc("/api/domains", s.handleDomains)
+	mux.HandleFunc("/api/export", s.handleExport)
 
 	addr := fmt.Sprintf(":%d", s.port)
 	fmt.Printf("\n  ✓ Server berjalan di http://localhost%s\n", addr)
 	fmt.Printf("  ✓ Buka browser dan akses URL di atas\n")
 	fmt.Printf("  ✗ Tekan Ctrl+C untuk berhenti\n\n")
 	return http.ListenAndServe(addr, mux)
+}
+
+func (s *Server) buildWhere(q map[string][]string) (string, []interface{}) {
+	get := func(k string) string { return strings.TrimSpace(strings.Join(q[k], "")) }
+	where := "WHERE 1=1"
+	args := []interface{}{}
+	if v := get("search"); v != "" {
+		where += " AND (domain LIKE ? OR title LIKE ?)"
+		args = append(args, "%"+v+"%", "%"+v+"%")
+	}
+	if v := get("tld"); v != "" {
+		where += " AND tld=?"
+		args = append(args, v)
+	}
+	if v := get("isp"); v != "" {
+		where += " AND isp=?"
+		args = append(args, v)
+	}
+	if v := get("cms"); v != "" {
+		where += " AND cms LIKE ?"
+		args = append(args, v+"%")
+	}
+	return where, args
+}
+
+func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
+	format := strings.TrimSpace(r.URL.Query().Get("format"))
+	if format == "" {
+		format = "txt"
+	}
+	qmap := map[string][]string{}
+	for k, v := range r.URL.Query() {
+		qmap[k] = v
+	}
+	where, args := s.buildWhere(qmap)
+
+	rows, err := s.db.Query(
+		"SELECT domain, url, tld, COALESCE(keyword_hit,''), COALESCE(cms,''), COALESCE(isp,''), COALESCE(ip,''), ssl, status_code FROM domains "+where+" ORDER BY id DESC",
+		args...,
+	)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	defer rows.Close()
+
+	if format == "csv" {
+		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+		w.Header().Set("Content-Disposition", "attachment; filename=\"dorkscan-export.csv\"")
+		fmt.Fprintf(w, "domain,url,tld,keyword,cms,isp,ip,ssl,status_code\n")
+		for rows.Next() {
+			var domain, url, tld, kw, cms, isp, ip string
+			var ssl, status int
+			rows.Scan(&domain, &url, &tld, &kw, &cms, &isp, &ip, &ssl, &status)
+			fmt.Fprintf(w, "%s,%s,%s,%s,%s,%s,%s,%d,%d\n", domain, url, tld, kw, cms, isp, ip, ssl, status)
+		}
+	} else {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("Content-Disposition", "attachment; filename=\"dorkscan-domains.txt\"")
+		for rows.Next() {
+			var domain, url, tld, kw, cms, isp, ip string
+			var ssl, status int
+			rows.Scan(&domain, &url, &tld, &kw, &cms, &isp, &ip, &ssl, &status)
+			fmt.Fprintf(w, "%s\n", domain)
+		}
+	}
 }
 
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
@@ -127,30 +194,11 @@ func (s *Server) handleDomains(w http.ResponseWriter, r *http.Request) {
 	perPage := 50
 	offset := (page - 1) * perPage
 
-	search := strings.TrimSpace(q.Get("search"))
-	tld := strings.TrimSpace(q.Get("tld"))
-	isp := strings.TrimSpace(q.Get("isp"))
-	cms := strings.TrimSpace(q.Get("cms"))
-
-	where := "WHERE 1=1"
-	args := []interface{}{}
-
-	if search != "" {
-		where += " AND (domain LIKE ? OR title LIKE ?)"
-		args = append(args, "%"+search+"%", "%"+search+"%")
+	qmap := map[string][]string{}
+	for k, v := range q {
+		qmap[k] = v
 	}
-	if tld != "" {
-		where += " AND tld=?"
-		args = append(args, tld)
-	}
-	if isp != "" {
-		where += " AND isp=?"
-		args = append(args, isp)
-	}
-	if cms != "" {
-		where += " AND cms LIKE ?"
-		args = append(args, cms+"%")
-	}
+	where, args := s.buildWhere(qmap)
 
 	var total int
 	s.db.QueryRow("SELECT COUNT(*) FROM domains "+where, args...).Scan(&total)

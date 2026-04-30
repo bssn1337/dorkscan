@@ -67,6 +67,14 @@ td{padding:10px 14px;vertical-align:middle}
 .pg-btn[disabled]{opacity:.35;cursor:not-allowed}
 .pg-btn.active{background:var(--orange);border-color:var(--orange);color:#fff}
 #loading{text-align:center;padding:40px;color:var(--dim);font-size:11px}
+.export-wrap{position:relative;display:inline-block}
+.export-btn{background:var(--orange);border:none;color:#fff;padding:6px 14px;border-radius:4px;font-size:11px;cursor:pointer;font-family:inherit;font-weight:600;display:flex;align-items:center;gap:5px}
+.export-btn:hover{opacity:.88}
+.export-menu{display:none;position:absolute;right:0;top:calc(100% + 4px);background:#fff;border:1px solid rgba(0,0,0,.12);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.1);z-index:50;min-width:180px;overflow:hidden}
+.export-menu.open{display:block}
+.export-item{display:block;width:100%;padding:9px 14px;font-size:11px;text-align:left;background:none;border:none;cursor:pointer;font-family:inherit;color:var(--text);border-bottom:1px solid rgba(0,0,0,.05)}
+.export-item:last-child{border-bottom:none}
+.export-item:hover{background:#faf9f7;color:var(--orange)}
 </style>
 </head>
 <body>
@@ -106,6 +114,16 @@ td{padding:10px 14px;vertical-align:middle}
       <select id="cms-filter"><option value="">Semua CMS</option></select>
       <div class="spacer"></div>
       <span class="result-count" id="result-count"></span>
+      <div class="export-wrap" id="export-wrap">
+        <button class="export-btn" onclick="toggleExport()">
+          <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M8 1v10M4 8l4 4 4-4M2 14h12" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Export
+        </button>
+        <div class="export-menu" id="export-menu">
+          <button class="export-item" onclick="doExport('txt')">📄 Domain saja (.txt)</button>
+          <button class="export-item" onclick="doExport('csv')">📊 Semua kolom (.csv)</button>
+        </div>
+      </div>
     </div>
     <div id="loading">Memuat data...</div>
     <div id="table-wrap" style="display:none;overflow-x:auto">
@@ -317,6 +335,25 @@ function renderPagination(cur, total){
   });
   html += '<button class="pg-btn" onclick="loadDomains('+(cur+1)+')" '+(cur>=total?'disabled':'')+'>Next →</button>';
   document.getElementById('pg-btns').innerHTML = html;
+}
+
+function toggleExport(){
+  var m = document.getElementById('export-menu');
+  m.classList.toggle('open');
+}
+document.addEventListener('click', function(e){
+  if (!document.getElementById('export-wrap').contains(e.target)){
+    document.getElementById('export-menu').classList.remove('open');
+  }
+});
+function doExport(fmt){
+  document.getElementById('export-menu').classList.remove('open');
+  var search  = document.getElementById('search').value;
+  var tld     = document.getElementById('tld-filter').value;
+  var isp     = document.getElementById('isp-filter').value;
+  var cms     = document.getElementById('cms-filter').value;
+  var url = '/api/export?format='+fmt+'&search='+encodeURIComponent(search)+'&tld='+encodeURIComponent(tld)+'&isp='+encodeURIComponent(isp)+'&cms='+encodeURIComponent(cms);
+  window.location.href = url;
 }
 
 var _debTimer;
