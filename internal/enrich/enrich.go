@@ -74,6 +74,15 @@ func (e *Enricher) Enrich(d *storage.Domain) {
 	}
 
 	e.detectTech(d)
+
+	// Jika HTTP berhasil tapi DNS awal gagal, retry DNS untuk ISP lookup
+	if d.IP == "" && d.StatusCode > 0 {
+		ips2, err2 := net.LookupHost(d.Domain)
+		if err2 == nil && len(ips2) > 0 {
+			d.IP = ips2[0]
+			e.lookupISP(d)
+		}
+	}
 }
 
 func (e *Enricher) lookupISP(d *storage.Domain) {

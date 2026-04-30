@@ -103,6 +103,7 @@ td{padding:10px 14px;vertical-align:middle}
       <input id="search" type="text" placeholder="Cari domain atau judul...">
       <select id="tld-filter"><option value="">Semua TLD</option></select>
       <select id="isp-filter"><option value="">Semua ISP</option></select>
+      <select id="cms-filter"><option value="">Semua CMS</option></select>
       <div class="spacer"></div>
       <span class="result-count" id="result-count"></span>
     </div>
@@ -127,6 +128,55 @@ td{padding:10px 14px;vertical-align:middle}
 
 <script>
 var currentPage = 1;
+
+var CMS_ICONS = {
+  'WordPress':    ['wordpress',    '21759b'],
+  'Joomla':       ['joomla',       '5091cd'],
+  'Drupal':       ['drupal',       '0678be'],
+  'Moodle':       ['moodle',       'f98012'],
+  'Laravel':      ['laravel',      'ff2d20'],
+  'CodeIgniter':  ['codeigniter',  'ef4223'],
+  'Remix':        ['remix',        '000000'],
+  'OpenCart':     ['opencart',     '1d6fa4'],
+};
+
+var ISP_ICONS = [
+  ['Cloudflare',    'cloudflare',    'f38020'],
+  ['Google',        'google',        '4285f4'],
+  ['Amazon',        'amazonaws',     'ff9900'],
+  ['Hostinger',     'hostinger',     '673de6'],
+  ['DigitalOcean',  'digitalocean',  '0080ff'],
+  ['Alibaba',       'alibabacloud',  'ff6a00'],
+  ['Linode',        'linode',        '00a95c'],
+  ['OVH',           'ovh',           '123f6d'],
+];
+
+function siIcon(slug, color, size) {
+  size = size || 11;
+  return '<img src="https://cdn.simpleicons.org/'+slug+'/'+color+'" width="'+size+'" height="'+size+'" style="vertical-align:middle;margin-right:3px;display:inline-block">';
+}
+
+function cmsIcon(name) {
+  if (!name) return '';
+  var key = name.split(' ')[0];
+  var ic = CMS_ICONS[key];
+  if (ic) return siIcon(ic[0], ic[1]);
+  if (name.toLowerCase().indexOf('hugo') !== -1) return siIcon('hugo', '000000');
+  if (name.toLowerCase().indexOf('astro') !== -1) return siIcon('astro', 'ff5d01');
+  if (name.toLowerCase().indexOf('grav') !== -1) return siIcon('grav', '221e1f');
+  if (name.toLowerCase().indexOf('bolt') !== -1) return siIcon('bolt', '333333');
+  if (name.toLowerCase().indexOf('slims') !== -1 || name.toLowerCase().indexOf('senayan') !== -1) return '📚 ';
+  if (name.toLowerCase().indexOf('journal') !== -1 || name.toLowerCase().indexOf('ojs') !== -1) return '📄 ';
+  return '';
+}
+
+function ispIcon(name) {
+  if (!name) return '';
+  for (var i = 0; i < ISP_ICONS.length; i++) {
+    if (name.indexOf(ISP_ICONS[i][0]) !== -1) return siIcon(ISP_ICONS[i][1], ISP_ICONS[i][2]);
+  }
+  return '';
+}
 
 function esc(s){
   return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -182,6 +232,14 @@ function loadStats(){
       ispSel.appendChild(o);
     });
 
+    var cmsList = Object.entries(s.by_cms).sort(function(a,b){return b[1]-a[1];});
+    var cmsSel = document.getElementById('cms-filter');
+    cmsList.filter(function(t){ return t[0] !== 'Unknown'; }).forEach(function(t){
+      var o = document.createElement('option');
+      o.value = t[0]; o.textContent = t[0]+' ('+fmt(t[1])+')';
+      cmsSel.appendChild(o);
+    });
+
   });
 }
 
@@ -190,12 +248,13 @@ function loadDomains(page){
   var search  = document.getElementById('search').value;
   var tld     = document.getElementById('tld-filter').value;
   var isp     = document.getElementById('isp-filter').value;
+  var cms     = document.getElementById('cms-filter').value;
 
   document.getElementById('loading').style.display = 'block';
   document.getElementById('table-wrap').style.display = 'none';
   document.getElementById('pagination').style.display = 'none';
 
-  var params = 'page='+currentPage+'&search='+encodeURIComponent(search)+'&tld='+encodeURIComponent(tld)+'&isp='+encodeURIComponent(isp);
+  var params = 'page='+currentPage+'&search='+encodeURIComponent(search)+'&tld='+encodeURIComponent(tld)+'&isp='+encodeURIComponent(isp)+'&cms='+encodeURIComponent(cms);
 
   fetch('/api/domains?'+params).then(function(r){ return r.json(); }).then(function(d){
     var start = (d.page-1)*d.per_page+1;
@@ -211,8 +270,8 @@ function loadDomains(page){
         var num = (start+i).toString().padStart(5,'0');
         var url = r.url || 'https://'+r.domain;
         var title = esc(r.title) || '<span class="dash">—</span>';
-        var cms   = r.cms ? '<span class="cms-text">'+esc(r.cms)+'</span>' : '<span class="dash">—</span>';
-        var isp   = r.isp ? '<span class="isp-text" title="'+esc(r.isp)+'">'+esc(r.isp)+'</span>' : '<span class="dash">—</span>';
+        var cms   = r.cms ? '<span class="cms-text">'+cmsIcon(r.cms)+esc(r.cms)+'</span>' : '<span class="dash">—</span>';
+        var isp   = r.isp ? '<span class="isp-text" title="'+esc(r.isp)+'">'+ispIcon(r.isp)+esc(r.isp)+'</span>' : '<span class="dash">—</span>';
         var ssl   = r.ssl ? '<span class="ssl-yes">✓ SSL</span>' : '<span class="ssl-no">—</span>';
         var date  = (r.first_seen||'').substring(0,10) || '—';
         var kw    = r.keyword_hit ? '<span class="kw-badge" title="'+esc(r.keyword_hit)+'">'+esc(r.keyword_hit)+'</span>' : '<span class="dash">—</span>';
@@ -267,6 +326,7 @@ document.getElementById('search').addEventListener('input', function(){
 });
 document.getElementById('tld-filter').addEventListener('change', function(){ currentPage=1; loadDomains(); });
 document.getElementById('isp-filter').addEventListener('change',  function(){ currentPage=1; loadDomains(); });
+document.getElementById('cms-filter').addEventListener('change',  function(){ currentPage=1; loadDomains(); });
 
 loadStats();
 loadDomains(1);
